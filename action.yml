@@ -15,11 +15,11 @@ inputs:
   major_pattern:
     description: "a string which, if present in a git commit, indicates that a change represents a major (breaking) change"
     required: true
-    default: "BREAKING CHANGE:"
+    default: "(MAJOR)"
   minor_pattern:
     description: "a string which, if present in a git commit, indicates that a change represents a minor (feature) change"
     required: true
-    default: "feat:"
+    default: "(MINOR)"
   main_format:
     description: "Pattern to use when formatting main part of output version"
     required: false
