@@ -5,9 +5,12 @@ const process = require('process');
 // Action input variables
 process.env['INPUT_BRANCH'] = "master";
 process.env['INPUT_TAG_PREFIX'] = "v";
-process.env['INPUT_MAJOR_PATTERN'] = "(MAJOR)";
-process.env['INPUT_MINOR_PATTERN'] = "(MINOR)";
-process.env['INPUT_FORMAT'] = "${major}.${minor}.${patch}";
+process.env['INPUT_MAJOR_PATTERN'] = "BREAKING CHANGE:";
+process.env['INPUT_MINOR_PATTERN'] = "feat:";
+process.env['INPUT_MAIN_FORMAT'] = "${major}.${minor}.${patch}";
+process.env['INPUT_INCREMENT_FORMAT'] = "dev${increment}";
+// TODO: Add merge case tests
+process.env['GITHUB_EVENT_NAME'] = "pull_request";
 
 // Creates a randomly named git repository and returns a function to execute commands in it
 const createTestRepo = (inputs) => {
@@ -21,7 +24,7 @@ const createTestRepo = (inputs) => {
             env[`INPUT_${key.toUpperCase()}`] = allInputs[key];
         }
         return execute(repoDirectory, command, env);
-    }
+    };
 
     // Configure up git user
     run(`git config user.name "Test User"`);
@@ -54,118 +57,118 @@ const execute = (workingDirectory, command, env) => {
 };
 
 test('Empty repository version is correct', () => {
-    const repo = createTestRepo(); // 0.0.0+0
-    var result = repo.runAction();
+    const repo = createTestRepo(); // 0.0.0dev0
+    let result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.0.0+0');
+    expect(result).toMatch('Version is 0.0.0dev0');
 
     repo.clean();
 });
 
 test('Repository with commits shows increment', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit(`Second Commit`); // 0.0.1+1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit(`Second Commit`); // 0.0.1dev1
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.0.1+1');
+    expect(result).toMatch('Version is 0.0.1dev1');
 
     repo.clean();
 });
 
 test('Tagging does not break version', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit(`Second Commit`); // 0.0.1+1
-    repo.exec('git tag v0.0.1')
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit(`Second Commit`); // 0.0.1dev1
+    repo.exec('git tag v0.0.1');
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.0.1+1');
+    expect(result).toMatch('Version is 0.0.1dev1');
 
     repo.clean();
 });
 
 test('Minor update bumps minor version and resets increment', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit (MINOR)'); // 0.1.0+0
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('feat: Second Commit'); // 0.1.0dev0
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.1.0+0');
+    expect(result).toMatch('Version is 0.1.0dev0');
 
     repo.clean();
 });
 
 test('Major update bumps major version and resets increment', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit (MAJOR)'); // 1.0.0+0
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('BREAKING CHANGE: Second Commit'); // 1.0.0dev0
     const result = repo.runAction();
 
 
-    expect(result).toMatch('Version is 1.0.0+0');
+    expect(result).toMatch('Version is 1.0.0dev0');
 
     repo.clean();
 });
 
 test('Multiple major commits are idempotent', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo({'action_name': 'pull_request'}); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit (MAJOR)'); // 1.0.0+0
-    repo.makeCommit('Third Commit (MAJOR)'); // 1.0.0+1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('BREAKING CHANGE: Second Commit'); // 1.0.0dev0
+    repo.makeCommit('BREAKING CHANGE: Third Commit'); // 1.0.0dev1
     const result = repo.runAction();
 
 
-    expect(result).toMatch('Version is 1.0.0+1');
+    expect(result).toMatch('Version is 1.0.0dev1');
 
     repo.clean();
 });
 
 test('Minor commits after a major commit are ignored', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit (MAJOR)'); // 1.0.0+0
-    repo.makeCommit('Third Commit (MINOR)'); // 1.0.0+1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('BREAKING CHANGE: Second Commit'); // 1.0.0dev0
+    repo.makeCommit('feat: Third Commit'); // 1.0.0dev1
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 1.0.0+1');
+    expect(result).toMatch('Version is 1.0.0dev1');
 
     repo.clean();
 });
 
 test('Tags start new version', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit'); // 0.0.1+1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('Second Commit'); // 0.0.1dev1
     repo.exec('git tag v0.0.1');
-    repo.makeCommit('Third Commit'); // 0.0.2+0
+    repo.makeCommit('Third Commit'); // 0.0.2dev0
     const result = repo.runAction();
 
 
-    expect(result).toMatch('Version is 0.0.2+0');
+    expect(result).toMatch('Version is 0.0.2dev0');
 
     repo.clean();
 });
 
 test('Version pulled from last release branch', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag v0.0.1');
-    repo.makeCommit('Second Commit'); // 0.0.2+0
+    repo.makeCommit('Second Commit'); // 0.0.2dev0
     repo.exec('git tag v5.6.7');
-    repo.makeCommit('Third Commit'); // 5.6.7+0
+    repo.makeCommit('Third Commit'); // 5.6.7dev0
     const result = repo.runAction();
 
 
-    expect(result).toMatch('Version is 5.6.8+0');
+    expect(result).toMatch('Version is 5.6.8dev0');
 
     repo.clean();
 });
@@ -180,19 +183,19 @@ test('Tags on branches are used', () => {
     //  release           o--o <- taged v0.0.1
 
 
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit'); // 0.0.1+1
-    repo.makeCommit('Third Commit'); // 0.1.1+2
-    repo.exec('git checkout -b release/0.0.1')
-    repo.makeCommit('Fourth Commit'); // 0.1.1+3
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('Second Commit'); // 0.0.1dev1
+    repo.makeCommit('Third Commit'); // 0.1.1dev2
+    repo.exec('git checkout -b release/0.0.1');
+    repo.makeCommit('Fourth Commit'); // 0.1.1dev3
     repo.exec('git tag v0.0.1');
     repo.exec('git checkout master');
-    repo.makeCommit('Fifth Commit'); // 0.0.2.0
+    repo.makeCommit('Fifth Commit'); // 0.0.2dev0
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.0.2+0');
+    expect(result).toMatch('Version is 0.0.2dev0');
 
     repo.clean();
 });
@@ -211,38 +214,41 @@ test('Merged tags do not affect version', () => {
 
     const repo = createTestRepo(); // 0.0.0+0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit'); // 0.0.1+1
-    repo.makeCommit('Third Commit'); // 0.1.1+2
-    repo.exec('git checkout -b release/0.0.1')
-    repo.makeCommit('Fourth Commit'); // 0.1.1+3
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
+    repo.makeCommit('Second Commit'); // 0.0.1dev1
+    repo.makeCommit('Third Commit'); // 0.1.1dev2
+    repo.exec('git checkout -b release/0.0.1');
+    repo.makeCommit('Fourth Commit'); // 0.1.1dev3
     repo.exec('git tag v0.0.1');
     repo.exec('git checkout master');
-    repo.makeCommit('Fifth Commit'); // 0.0.2.0
+    repo.makeCommit('Fifth Commit'); // 0.0.2dev0
     repo.exec('git tag v0.0.2');
     repo.exec('git merge release/0.0.1');
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 0.0.3+1');
+    expect(result).toMatch('Version is 0.0.3dev1');
 
     repo.clean();
 });
 
 test('Version tags do not require all three version numbers', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit (MAJOR)'); // 1.0.0+0
+    repo.makeCommit('BREAKING CHANGE: Initial Commit'); // 1.0.0
     repo.exec('git tag v1');
-    repo.makeCommit(`Second Commit`); // 1.0.1+0
+    repo.makeCommit(`Second Commit`); // 1.0.1
     const result = repo.runAction();
 
-    expect(result).toMatch('Version is 1.0.1+0');
+    expect(result).toMatch('Version is 1.0.1dev0');
 
     repo.clean();
 });
 
 test('Format input is respected', () => {
-    const repo = createTestRepo({ format: 'M${major}m${minor}p${patch}i${increment}' }); // M0m0p0i0
+    const repo = createTestRepo({
+        main_format: 'M${major}m${minor}p${patch}',
+        increment_format: "i${increment}"
+    }); // M0m0p0i0
 
     repo.makeCommit('Initial Commit'); // M1m2p3i0
     repo.exec('git tag v1.2.3');
@@ -255,44 +261,45 @@ test('Format input is respected', () => {
 });
 
 test('Version prefixes are not required/can be empty', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
-    repo.makeCommit(`Second Commit`); // 0.0.2
+    repo.makeCommit(`Second Commit`); // 0.0.2dev0
     const result = repo.runAction();
+    console.log(result);
 
-    expect(result).toMatch('Version is 0.0.2');
+    expect(result).toMatch('Version is 0.0.2dev0');
 
     repo.clean();
 });
 
 test('Tag order comes from commit order, not tag create order', () => {
-    const repo = createTestRepo(); // 0.0.0+0
+    const repo = createTestRepo(); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1+0
-    repo.makeCommit('Second Commit'); // 0.0.1+1
-    repo.makeCommit('Third Commit'); // 0.0.1+2
+    repo.makeCommit('Initial Commit'); // 0.0.1dev00
+    repo.makeCommit('Second Commit'); // 0.0.1dev01
+    repo.makeCommit('Third Commit'); // 0.0.1dev02
     repo.exec('git tag v2.0.0');
     repo.exec('sleep 2');
     repo.exec('git tag v1.0.0 HEAD~1');
-    repo.makeCommit('Fourth Commit'); // 0.0.1+2
+    repo.makeCommit('Fourth Commit'); // 0.0.1dev02
 
     const result = repo.runAction();
 
 
-    expect(result).toMatch('Version is 2.0.1+0');
+    expect(result).toMatch('Version is 2.0.1dev0');
 
     repo.clean();
 });
 
 
 test('Change detection is true by default', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
-    repo.makeCommit(`Second Commit`); // 0.0.2
+    repo.makeCommit(`Second Commit`); // 0.0.2dev0
     const result = repo.runAction();
 
     expect(result).toMatch('::set-output name=changed::true');
@@ -301,11 +308,11 @@ test('Change detection is true by default', () => {
 });
 
 test('Change detection is true by default', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
-    repo.makeCommit(`Second Commit`); // 0.0.2
+    repo.makeCommit(`Second Commit`); // 0.0.2dev0
     const result = repo.runAction({});
 
     expect(result).toMatch('::set-output name=changed::true');
@@ -314,12 +321,12 @@ test('Change detection is true by default', () => {
 });
 
 test('Changes to monitored path is true when change is in path', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
     repo.exec('mkdir project1');
-    repo.makeCommit(`Second Commit`, 'project1'); // 0.0.2
+    repo.makeCommit(`Second Commit`, 'project1'); // 0.0.2dev0
     const result = repo.runAction({ change_path: "project1" });
 
     expect(result).toMatch('::set-output name=changed::true');
@@ -328,13 +335,13 @@ test('Changes to monitored path is true when change is in path', () => {
 });
 
 test('Changes to monitored path is false when changes are not in path', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
     repo.exec('mkdir project1');
     repo.exec('mkdir project2');
-    repo.makeCommit(`Second Commit`, 'project2'); // 0.0.2
+    repo.makeCommit(`Second Commit`, 'project2'); // 0.0.2dev0
     const result = repo.runAction({ change_path: "project1" });
 
     expect(result).toMatch('::set-output name=changed::false');
@@ -343,13 +350,13 @@ test('Changes to monitored path is false when changes are not in path', () => {
 });
 
 test('Changes to multiple monitored path is true when change is in path', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
     repo.exec('mkdir project1');
     repo.exec('mkdir project2');
-    repo.makeCommit(`Second Commit`, 'project2'); // 0.0.2
+    repo.makeCommit(`Second Commit`, 'project2'); // 0.0.2dev0
     const result = repo.runAction({ change_path: "./project1 ./project2" });
 
     expect(result).toMatch('::set-output name=changed::true');
@@ -358,14 +365,14 @@ test('Changes to multiple monitored path is true when change is in path', () => 
 });
 
 test('Changes to multiple monitored path is false when change is not in path', () => {
-    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0
+    const repo = createTestRepo({ tag_prefix: '' }); // 0.0.0dev0
 
-    repo.makeCommit('Initial Commit'); // 0.0.1
+    repo.makeCommit('Initial Commit'); // 0.0.1dev0
     repo.exec('git tag 0.0.1');
     repo.exec('mkdir project1');
     repo.exec('mkdir project2');
     repo.exec('mkdir project3');
-    repo.makeCommit(`Second Commit`, 'project3'); // 0.0.2
+    repo.makeCommit(`Second Commit`, 'project3'); // 0.0.2dev0
     const result = repo.runAction({ change_path: "project1 project2" });
 
     expect(result).toMatch('::set-output name=changed::false');

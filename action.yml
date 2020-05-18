@@ -20,10 +20,14 @@ inputs:
     description: "a string which, if present in a git commit, indicates that a change represents a minor (feature) change"
     required: true
     default: "(MINOR)"
-  format:
-    description: "Pattern to use when formatting output version"
-    required: true
+  main_format:
+    description: "Pattern to use when formatting main part of output version"
+    required: false
     default: "${major}.${minor}.${patch}"
+  increment_format:
+    description: "Pattern to use when formatting increment part of output version"
+    required: false
+    default: "dev${increment}"
   change_path:
     description: "Path to check for changes. If any changes are detected in the path the 'changed' output will true. Enter multiple paths separated by spaces."
     required: false
