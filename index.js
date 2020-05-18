@@ -19,7 +19,7 @@ const cmd = async (command, ...args) => {
 };
 
 const setOutput = (major, minor, patch, increment, changed, branch) => {
-  const main_format = core.getInput('main_format', { required: true });
+  const main_format = core.getInput('main_format', { required: false });
   let version = main_format
     .replace('${major}', major)
     .replace('${minor}', minor)

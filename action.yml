@@ -22,11 +22,12 @@ inputs:
     default: "(MINOR)"
   main_format:
     description: "Pattern to use when formatting main part of output version"
-    required: true
+    required: false
     default: "${major}.${minor}.${patch}"
   increment_format:
     description: "Pattern to use when formatting increment part of output version"
     required: false
+    default: "dev${increment}"
   change_path:
     description: "Path to check for changes. If any changes are detected in the path the 'changed' output will true. Enter multiple paths separated by spaces."
     required: false
