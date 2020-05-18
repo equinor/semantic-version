@@ -19,18 +19,32 @@ const cmd = async (command, ...args) => {
 };
 
 const setOutput = (major, minor, patch, increment, changed, branch) => {
-  const format = core.getInput('format', { required: true });
-  var version = format
+  const main_format = core.getInput('main_format', { required: true });
+  let version = main_format
     .replace('${major}', major)
     .replace('${minor}', minor)
-    .replace('${patch}', patch)
-    .replace('${increment}', increment);
+    .replace('${patch}', patch);
+
+  const increment_format = core.getInput('increment_format', { required: false });
+
+  if (increment_format !== undefined) {
+    let increment_version = increment_format.replace('${increment}', increment);
+
+    const event_name = process.env.GITHUB_EVENT_NAME;
+
+    core.info(`Triggered by ${event_name}`);
+    if (event_name === "pull_request") {
+      version += increment_version;
+    }
+  }
 
   const tag = tagPrefix + version;
 
   const repository = process.env.GITHUB_REPOSITORY;
 
-  core.info(`Version is ${major}.${minor}.${patch}+${increment}`);
+  core.info(`Version is ${version}`);
+  core.info(`Repository is ${repository}`);
+
   if (repository !== undefined) {
     core.info(`To create a release for this version, go to https://github.com/${repository}/releases/new?tag=${tag}&target=${branch.split('/').reverse()[0]}`);
   }
@@ -46,9 +60,13 @@ async function run() {
   try {
     const remote = await cmd('git', 'remote');
     const remoteExists = remote !== '';
-    const remotePrefix = remoteExists ? 'origin/' : '';
 
-    const branch = `${remotePrefix}${core.getInput('branch', { required: true })}`;
+    let branch = core.getInput('branch', { required: true });
+    if (branch.includes("refs/pull/")) {
+        branch = branch.replace("refs/pull/", "refs/remotes/pull/")
+    }  else if (branch.includes("refs/heads/")) {
+        branch = branch.replace("refs/heads/", "refs/remotes/origin/")
+    }
     const majorPattern = core.getInput('major_pattern', { required: true });
     const minorPattern = core.getInput('minor_pattern', { required: true });
     const changePath = core.getInput('change_path') || '';
@@ -56,7 +74,6 @@ async function run() {
     const releasePattern = `${tagPrefix}*`;
     let major = 0, minor = 0, patch = 0, increment = 0;
     let changed = true;
-
 
     let lastCommitAll = (await cmd('git', 'rev-list', '-n1', '--all')).trim();
 
@@ -150,7 +167,7 @@ async function run() {
     setOutput(major, minor, patch, increment, changed, branch);
 
   } catch (error) {
-    core.error(error);
+    core.error(error.toString());
     core.setFailed(error.message);
   }
 }
