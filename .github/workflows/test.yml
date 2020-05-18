@@ -12,16 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+          with:
+            # Fetch all commits
+            fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch origin "+refs/tags/*:refs/tags/*"
+
       - name: NPM Install
         run: npm ci
+
       - name: Test
         run: npm test
+
       - name: Package
         run: npm run package
+
       - name: Run Action
         uses: ./
         id: run
         with:
-          main-branch: master
-          release-branch: release
+          branch: ${{ github.ref }}
