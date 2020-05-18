@@ -30,5 +30,7 @@ jobs:
         run: npm run package
 
       - name: Run Action
-        uses: ./
         id: run
+        uses: ./
+        with:
+          branch: ${{ github.ref }}
