@@ -22,15 +22,16 @@ inputs:
     default: "(MINOR)"
   main_format:
     description: "Pattern to use when formatting main part of output version"
-    required: false
+    required: true
     default: "${major}.${minor}.${patch}"
   increment_format:
-    description: "Pattern to use when formatting increment part of output version"
-    required: false
-    default: "dev${increment}"
-  change_path:
-    description: "Path to check for changes. If any changes are detected in the path the 'changed' output will true. Enter multiple paths separated by spaces."
-    required: false
+    description: "Pattern to use when formatting increment of output version"
+    required: true
+    default: "{increment}"
+  increment_delimiter:
+    description: "Pattern to use when formatting the delimiter between the main part and the increment"
+    required: true
+    default: "dev"
 outputs:
   major:
     description: "Current major number"
@@ -41,9 +42,9 @@ outputs:
   increment:
     description: "An additional value indicating the number of commits for the current version"
   version:
-    description: "The version result, in the format {major}.{minor}.{patch}"
-  changed:
-    description: "Indicates whether there was a change since the last version if change_path was specified. If no change_path was specified this value will always be false."
+    description: "The version result, in the format {tag_prefix}{version}{delimiter}{increment}"
+  tag:
+    description: "The version result, in the format {tag_prefix}{version}{delimiter}{increment}"
 runs:
   using: "node12"
   main: "dist/index.js"

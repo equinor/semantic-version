@@ -18,20 +18,23 @@ message alters the type of change the next version will represent.
 <!-- start usage -->
 
 ```yaml
-- uses: equinor/semantic-version@v3.0.0
-  with:
-    # The branch to count commits on
-    branch: ${{ github.ref }}
-    # The prefix to use to identify tags
-    tag_prefix: "v"
-    # A string which, if present in a git commit, indicates that a change represents a major (breaking) change
-    major_pattern: "BREAKING CHANGE:"
-    # Same as above except indicating a minor change
-    minor_pattern: "feat:"
-    # A string to determine the format of the version output
-    main_format: "${major}.${minor}.${patch}"
-    # A string to determine increment format
-    increment_format: "dev${increment}"
-    # Path to check for changes. If any changes are detected in the path the 'changed' output will true. Enter multiple paths separated by spaces.
-    change_path: "src/my-service"
+  - name: Semantic versioning
+    if: ${{ !startsWith(github.ref , 'refs/pull/') && !startsWith(github.ref , 'refs/tags/') }}
+    id: versioning
+    uses: equinor/semantic-version@v4.0.0
+    with:
+      # The branch to count commits on
+      branch: master
+      # The prefix to use to identify tags
+      tag_prefix: "v"
+      # A string which, if present in a git commit, indicates that a change represents a major (breaking) change
+      major_pattern: "BREAKING CHANGE:"
+      # Same as above except indicating a minor change
+      minor_pattern: "feat:"
+      # A string to determine the format of the version output
+      main_format: "${major}.${minor}.${patch}"
+      # A string to determine the format of the version output
+      increment_format: "${increment}"
+      # A string to determine the format of the version output
+      increment_delimiter: "dev"
 ```

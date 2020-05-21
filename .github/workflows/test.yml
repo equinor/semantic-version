@@ -12,13 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          # Fetch all commits
-          fetch-depth: 0
-
-      - name: Fetch tags
-        run: git fetch origin "+refs/tags/*:refs/tags/*"
+        uses: actions/checkout@v1
 
       - name: NPM Install
         run: npm ci
@@ -30,6 +24,7 @@ jobs:
         run: npm run package
 
       - name: Run Action
+        if: ${{ !startsWith(github.ref , 'refs/pull/') && !startsWith(github.ref , 'refs/tags/') }}
         uses: ./
         id: run
         with:
