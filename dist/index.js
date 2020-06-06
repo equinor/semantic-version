@@ -984,7 +984,7 @@ const setOutput = (major, minor, patch, increment, branch) => {
 
     const repository = process.env.GITHUB_REPOSITORY;
 
-    core.info(`Version is ${major}.${minor}.${patch}+${increment}`);
+    core.info(`Version is ${main_version}${increment_delimiter}${increment_version}`);
     if (repository !== undefined) {
         core.info(`To create a release for this version, go to https://github.com/${repository}/releases/new?tag=${release_tag}&target=${branch.split('/').reverse()[0]}`);
     }
@@ -1076,99 +1076,103 @@ async function run() {
         let lastCommitAll = (await cmd('git', 'rev-list', '-n1', '--all'))
             .trim();
 
-    if (lastCommitAll === '') {
-        // empty repo
-        setOutput('0', '0', '0', '0', branch);
-        return;
-    }
-
-    //let commit = (await cmd('git', 'rev-parse', 'HEAD')).trim();
-
-    let tags = [];
-    try {
-        tags = (await cmd('git', `tag` ))
-            .trim()
-            .split(eol)
-            .reverse();
-    }
-    catch (err) {
-        tags = [];
-    }
-
-    let root;
-    if (tags === []) {
-        if (remoteExists) {
-        core.warning('No tags are present for this repository. If this is unexpected, check to ensure that tags have been pulled from the remote.');
-        }
-        // no release tags yet, use the initial commit as the root
-        root = '';
-    } else {
-        let currentTag = tags[0];
-
-        let tagParts = splitTag(currentTag);
-
-        const mainValues = tagParts[0];
-        const incrementPart = tagParts[1];
-
-        major = parseInt(mainValues[0]);
-        minor = mainValues.length > 1 ? parseInt(mainValues[1]) : 0;
-        patch = mainValues.length > 2 ? parseInt(mainValues[2]) : 0;
-        increment = incrementPart !== '' ? parseInt(incrementPart) : -1;
-
-        if (isNaN(major) || isNaN(minor) || isNaN(patch) || isNaN(increment)) {
-            throw `Invalid tag ${currentTag}`;
+        if (lastCommitAll === '') {
+            // empty repo
+            setOutput('0', '0', '0', '0', branch);
+            return;
         }
 
-      root = await cmd('git', `merge-base`, currentTag, branch);
-    }
-    root = root.trim();
+        //let commit = (await cmd('git', 'rev-parse', 'HEAD')).trim();
 
-    let history = await getHistory(root, branch);
+        let tags = [];
+        try {
+            tags = (await cmd('git', `tag` ))
+                .trim()
+                .split(eol)
+                .reverse();
+            if (tags.length === 1 && tags[0] === "") {
+                tags = [];
+            }
+        }
+        catch (err) {
+            tags = [];
+        }
 
-    // Discover the change time from the history log by finding the oldest log
-    // that could set the version.
-    const majorIndex = history.findIndex(x => x.toLowerCase().includes(majorPattern));
-    const minorIndex = history.findIndex(x => x.toLowerCase().includes(minorPattern));
+        let root;
+        if (tags.length === 0) {
+            if (remoteExists) {
+                core.warning('No tags are present for this repository. If this is unexpected, ' +
+                    'check to ensure that tags have been pulled from the remote.');
+            }
+            // no release tags yet, use the initial commit as the root
+            root = '';
+        } else {
+            let currentTag = tags[0];
 
-    let parts = [];
+            let tagParts = splitTag(currentTag);
 
-    if (tags !== []) {
-        let releaseTag = tags.find(x => !x.includes(increment_delimiter));
+            const mainValues = tagParts[0];
+            const incrementPart = tagParts[1];
 
-        if (releaseTag !== undefined && releaseTag !== tags[0]) {
+            major = parseInt(mainValues[0]);
+            minor = mainValues.length > 1 ? parseInt(mainValues[1]) : 0;
+            patch = mainValues.length > 2 ? parseInt(mainValues[2]) : 0;
+            increment = incrementPart !== '' ? parseInt(incrementPart) : -1;
 
-            let releaseTagParts = splitTag(releaseTag);
-
-            const releaseMainValues = releaseTagParts[0];
-            const releaseIncrementPart = releaseTagParts[1];
-
-            const releaseMajor = parseInt(releaseMainValues[0]);
-            const releaseMinor = releaseMainValues.length > 1 ? parseInt(releaseMainValues[1]) : 0;
-            const releasePatch = releaseMainValues.length > 2 ? parseInt(releaseMainValues[2]) : 0;
-            const releaseIncrement = releaseIncrementPart !== '' ? parseInt(releaseIncrementPart) : -1;
-
-            if (isNaN(releaseMajor) || isNaN(releaseMinor) || isNaN(releasePatch) || isNaN(releaseIncrement)) {
-                throw `Invalid tag ${releaseTag}`;
+            if (isNaN(major) || isNaN(minor) || isNaN(patch) || isNaN(increment)) {
+                throw `Invalid tag ${currentTag}`;
             }
 
-            parts = bumpSame(
-                history, majorIndex, minorIndex, releaseMajor, releaseMinor, releasePatch, major, minor, patch,
-                increment
-            );
+          root = await cmd('git', `merge-base`, currentTag, branch);
+        }
+        root = root.trim();
 
+        let history = await getHistory(root, branch);
+
+        // Discover the change time from the history log by finding the oldest log
+        // that could set the version.
+        const majorIndex = history.findIndex(x => x.toLowerCase().includes(majorPattern));
+        const minorIndex = history.findIndex(x => x.toLowerCase().includes(minorPattern));
+
+        let parts = [];
+
+        if (tags.length !== 0) {
+            let releaseTag = tags.find(x => !x.includes(increment_delimiter));
+
+            if (releaseTag !== undefined && releaseTag !== tags[0]) {
+
+                let releaseTagParts = splitTag(releaseTag);
+
+                const releaseMainValues = releaseTagParts[0];
+                const releaseIncrementPart = releaseTagParts[1];
+
+                const releaseMajor = parseInt(releaseMainValues[0]);
+                const releaseMinor = releaseMainValues.length > 1 ? parseInt(releaseMainValues[1]) : 0;
+                const releasePatch = releaseMainValues.length > 2 ? parseInt(releaseMainValues[2]) : 0;
+                const releaseIncrement = releaseIncrementPart !== '' ? parseInt(releaseIncrementPart) : -1;
+
+                if (isNaN(releaseMajor) || isNaN(releaseMinor) || isNaN(releasePatch) || isNaN(releaseIncrement)) {
+                    throw `Invalid tag ${releaseTag}`;
+                }
+
+                parts = bumpSame(
+                    history, majorIndex, minorIndex, releaseMajor, releaseMinor, releasePatch, major, minor, patch,
+                    increment
+                );
+
+            } else {
+                parts = bumpRegular(history, majorIndex, minorIndex, major, minor, patch, increment);
+            }
         } else {
             parts = bumpRegular(history, majorIndex, minorIndex, major, minor, patch, increment);
         }
-    } else {
-        parts = bumpRegular(history, majorIndex, minorIndex, major, minor, patch, increment);
-    }
 
-    major = parts[0];
-    minor = parts[1];
-    patch = parts[2];
-    increment = parts[3];
+        major = parts[0];
+        minor = parts[1];
+        patch = parts[2];
+        increment = parts[3];
 
-    setOutput(major, minor, patch, increment, branch);
+        setOutput(major, minor, patch, increment, branch);
 
     } catch (error) {
         core.error(error.toString());
