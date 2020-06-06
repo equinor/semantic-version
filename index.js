@@ -38,7 +38,7 @@ const setOutput = (major, minor, patch, increment, branch) => {
 
     const repository = process.env.GITHUB_REPOSITORY;
 
-    core.info(`Version is ${major}.${minor}.${patch}+${increment}`);
+    core.info(`Version is ${main_version}${increment_delimiter}${increment_version}`);
     if (repository !== undefined) {
         core.info(`To create a release for this version, go to https://github.com/${repository}/releases/new?tag=${release_tag}&target=${branch.split('/').reverse()[0]}`);
     }
@@ -144,15 +144,19 @@ async function run() {
                 .trim()
                 .split(eol)
                 .reverse();
+            if (tags.length === 1 && tags[0] === "") {
+                tags = [];
+            }
         }
         catch (err) {
             tags = [];
         }
 
         let root;
-        if (tags === []) {
+        if (tags.length === 0) {
             if (remoteExists) {
-            core.warning('No tags are present for this repository. If this is unexpected, check to ensure that tags have been pulled from the remote.');
+                core.warning('No tags are present for this repository. If this is unexpected, ' +
+                    'check to ensure that tags have been pulled from the remote.');
             }
             // no release tags yet, use the initial commit as the root
             root = '';
@@ -186,7 +190,7 @@ async function run() {
 
         let parts = [];
 
-        if (tags !== []) {
+        if (tags.length !== 0) {
             let releaseTag = tags.find(x => !x.includes(increment_delimiter));
 
             if (releaseTag !== undefined && releaseTag !== tags[0]) {
