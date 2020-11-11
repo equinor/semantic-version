@@ -42,9 +42,13 @@ outputs:
   increment:
     description: "An additional value indicating the number of commits for the current version"
   version:
-    description: "The version result, in the format {tag_prefix}{version}{delimiter}{increment}"
+    description: "The version result, in the format {version}{delimiter}{increment}"
   tag:
-    description: "The version result, in the format {tag_prefix}{version}{delimiter}{increment}"
+    description: "The tag result, in the format {tag_prefix}{version}{delimiter}{increment}"
+  release_version:
+    description: "The release version result, in the format {version}"
+  release_tag:
+    description: "The release tag result, in the format {tag_prefix}{version}"
 runs:
   using: "node12"
   main: "dist/index.js"
