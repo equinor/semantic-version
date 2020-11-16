@@ -967,29 +967,33 @@ const cmd = async (command, ...args) => {
 
 
 const setOutput = (major, minor, patch, increment, branch) => {
-    const main_format = core.getInput('main_format', { required: true });
+    const release_format = core.getInput('main_format', { required: true });
     const increment_format = core.getInput('increment_format', { required: true });
 
-    let main_version = main_format
+    let release_version = release_format
         .replace('${major}', major)
         .replace('${minor}', minor)
         .replace('${patch}', patch);
 
-    let increment_version = increment_format
-        .replace('${increment}', increment);
+    let increment_version = increment_format.replace('${increment}', increment);
 
-    const release_tag = tagPrefix + main_version;
+    const release_tag = tagPrefix + release_version;
+    const version = release_version + increment_delimiter + increment_version;
+    const tag = tagPrefix + version;
 
-    let version_tag = tagPrefix + main_version + increment_delimiter + increment_version;
+    core.info(`Version is ${version}`);
 
     const repository = process.env.GITHUB_REPOSITORY;
 
-    core.info(`Version is ${main_version}${increment_delimiter}${increment_version}`);
     if (repository !== undefined) {
         core.info(`To create a release for this version, go to https://github.com/${repository}/releases/new?tag=${release_tag}&target=${branch.split('/').reverse()[0]}`);
     }
-    core.setOutput("tag", version_tag);
-    core.setOutput("version", version_tag);
+
+    core.setOutput("tag", tag);
+    core.setOutput("version", version);
+    core.setOutput("release_tag", release_tag);
+    core.setOutput("release_version", release_version);
+    core.setOutput("tag_prefix", tagPrefix)
     core.setOutput("major", major.toString());
     core.setOutput("minor", minor.toString());
     core.setOutput("patch", patch.toString());
