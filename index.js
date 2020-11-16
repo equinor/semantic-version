@@ -144,10 +144,9 @@ async function run() {
 
         let tags = [];
         try {
-            tags = (await cmd('git', `tag` ))
+            tags = (await cmd('git', `tag`, '--sort', '-v:refname' ))
                 .trim()
-                .split(eol)
-                .reverse();
+                .split(eol);
             if (tags.length === 1 && tags[0] === "") {
                 tags = [];
             }
